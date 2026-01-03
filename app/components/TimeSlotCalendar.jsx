@@ -39,20 +39,37 @@ export default function TimeSlotCalendar({ slotTitle, price, slotId, hostId }) {
     }
 
     try {
-      // Supabase에 예약 저장
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert([
-          {
-            timeslot_id: slotId,
-            host_id: hostId,
-            guest_id: user.id,
-            booking_date: selectedDate.toISOString().split('T')[0],
-            booking_time: selectedTime,
-            status: 'confirmed',
-            price: parseInt(price.replace(/[^0-9]/g, ''))
-          }
-        ]);
+  // 먼저 타임슬롯 정보를 가져와서 승인 필요 여부 확인
+  const { data: timeslotData } = await supabase
+    .from('timeslots')
+    .select('requires_approval')
+    .eq('id', slotId)
+    .single();
+
+  const requiresApproval = timeslotData?.requires_approval || false;
+  
+  // Supabase에 예약 저장
+  const { data, error } = await supabase
+    .from('bookings')
+    .insert([
+      {
+        timeslot_id: slotId,
+        host_id: hostId,
+        guest_id: user.id,
+        booking_date: selectedDate.toISOString().split('T')[0],
+        booking_time: selectedTime,
+        status: requiresApproval ? 'pending' : 'confirmed',
+        price: parseInt(price.replace(/[^0-9]/g, ''))
+      }
+    ]);
+
+  if (error) throw error;
+
+  const statusMessage = requiresApproval 
+    ? '예약 신청이 완료되었습니다!\n호스트의 승인을 기다려주세요.' 
+    : '예약이 확정되었습니다!';
+  
+  alert(`${statusMessage}\n날짜: ${selectedDate.toLocaleDateString('ko-KR')}\n시간: ${selectedTime}\n가격: ${price}`);
 
       if (error) throw error;
 

@@ -188,10 +188,38 @@ export default function Home() {
                       <div>
                         <h4 className="text-lg font-semibold text-gray-800 mb-2">{slot.title}</h4>
                         <p className="text-gray-600 mb-3">{slot.description}</p>
-                        <div className="flex gap-4 text-sm text-gray-500">
-                          <span>⏱️ {slot.duration}</span>
-                          <span>📍 {slot.location}</span>
-                        </div>
+                        <div className="space-y-2 text-sm">
+  <div className="flex gap-4 text-gray-500">
+    <span>⏱️ {slot.duration}</span>
+    <span>📍 {slot.location}</span>
+  </div>
+  
+  {slot.available_days && slot.available_days.length > 0 && (
+    <div className="flex items-center gap-2">
+      <span className="text-gray-500">📅 예약 가능:</span>
+      <div className="flex gap-1">
+        {slot.available_days.map((day: string) => (
+          <span key={day} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
+            {day}
+          </span>
+        ))}
+      </div>
+    </div>
+  )}
+  
+  {slot.available_times && slot.available_times.length > 0 && (
+    <div className="text-gray-500">
+      ⏰ {slot.available_times.slice(0, 3).join(', ')}
+      {slot.available_times.length > 3 && ` 외 ${slot.available_times.length - 3}개`}
+    </div>
+  )}
+  
+  {slot.requires_approval && (
+    <div className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-semibold">
+      ✋ 승인 필요
+    </div>
+  )}
+</div>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-purple-600">₩{slot.price.toLocaleString()}</p>

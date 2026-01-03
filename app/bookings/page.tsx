@@ -42,6 +42,41 @@ export default function BookingsPage() {
     setCurrentUser(null);
     alert('로그아웃되었습니다.');
   };
+  const handleApprove = async (bookingId: number) => {
+  if (!confirm('이 예약을 승인하시겠습니까?')) return;
+  
+  try {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status: 'confirmed' })
+      .eq('id', bookingId);
+    
+    if (error) throw error;
+    
+    alert('예약이 승인되었습니다!');
+    window.location.reload();
+  } catch (error: any) {
+    alert(`승인 실패: ${error.message}`);
+  }
+};
+
+const handleReject = async (bookingId: number) => {
+  if (!confirm('이 예약을 거절하시겠습니까?')) return;
+  
+  try {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', bookingId);
+    
+    if (error) throw error;
+    
+    alert('예약이 거절되었습니다.');
+    window.location.reload();
+  } catch (error: any) {
+    alert(`거절 실패: ${error.message}`);
+  }
+};
 
   const sentBookings: SentBooking[] = [
     {
@@ -116,17 +151,19 @@ export default function BookingsPage() {
   ];
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">예약 확정</span>;
-      case 'completed':
-        return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">완료</span>;
-      case 'cancelled':
-        return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">취소됨</span>;
-      default:
-        return null;
-    }
-  };
+  switch (status) {
+    case 'pending':
+      return <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">승인 대기</span>;
+    case 'confirmed':
+      return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">예약 확정</span>;
+    case 'completed':
+      return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">완료</span>;
+    case 'cancelled':
+      return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">취소됨</span>;
+    default:
+      return null;
+  }
+};
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -251,27 +288,43 @@ export default function BookingsPage() {
                   </div>
 
                   <div className="flex gap-3 pt-4 border-t border-gray-100">
-                    {booking.status === 'confirmed' && (
-                      <>
-                        <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-                          일정 확인
-                        </button>
-                        <button className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-semibold">
-                          취소
-                        </button>
-                      </>
-                    )}
-                    {booking.status === 'completed' && (
-                      <>
-                        <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-                          리뷰 작성
-                        </button>
-                        <button className="px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-semibold">
-                          다시 예약
-                        </button>
-                      </>
-                    )}
-                  </div>
+  {booking.status === 'pending' && (
+    <>
+      <button 
+        onClick={() => handleApprove(booking.id)}
+        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold"
+      >
+        ✓ 승인
+      </button>
+      <button 
+        onClick={() => handleReject(booking.id)}
+        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold"
+      >
+        ✗ 거절
+      </button>
+    </>
+  )}
+  {booking.status === 'confirmed' && (
+    <>
+      <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+        일정 관리
+      </button>
+      <button className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-semibold">
+        취소
+      </button>
+    </>
+  )}
+  {booking.status === 'completed' && (
+    <>
+      <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+        리뷰 보기
+      </button>
+      <button className="px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-semibold">
+        다시 예약
+      </button>
+    </>
+  )}
+</div>
                 </div>
               </div>
             ))
