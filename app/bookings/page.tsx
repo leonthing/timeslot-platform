@@ -206,11 +206,11 @@ export default function BookingsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-2xl">
-                    {activeTab === 'sent' ? booking.hostAvatar : (booking as any).guestAvatar}
+                    {activeTab === 'sent' ? booking.hostAvatar : 'guestAvatar' in booking ? booking.guestAvatar : '👤'}
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-800">
-                      {activeTab === 'sent' ? booking.hostName : (booking as any).guestName}
+                      {activeTab === 'sent' ? booking.hostName : 'guestName' in booking ? booking.guestName : '게스트'}
                     </h3>
                     <p className="text-sm text-gray-500">
                       {activeTab === 'sent' ? '호스트' : '게스트'}
