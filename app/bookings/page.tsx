@@ -5,165 +5,195 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 interface Booking {
-  id: number;
+  id: string;
   slotTitle: string;
   date: string;
   time: string;
   price: number;
   status: string;
   location: string;
-}
-
-interface SentBooking extends Booking {
-  hostName: string;
-  hostAvatar: string;
-}
-
-interface ReceivedBooking extends Booking {
-  guestName: string;
-  guestAvatar: string;
+  userName: string;
+  userAvatar: string;
 }
 
 export default function BookingsPage() {
   const [activeTab, setActiveTab] = useState<'sent' | 'received'>('sent');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sentBookings, setSentBookings] = useState<Booking[]>([]);
+  const [receivedBookings, setReceivedBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkUser();
+    checkUserAndLoadBookings();
   }, []);
 
-  const checkUser = async () => {
+  const checkUserAndLoadBookings = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setCurrentUser(user);
+    
+    if (user) {
+      await loadBookings(user.id);
+    }
+    
+    setLoading(false);
+  };
+
+  const loadBookings = async (userId: string) => {
+    try {
+      // 내가 한 예약 (guest_id가 나)
+      const { data: sent } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          booking_date,
+          booking_time,
+          price,
+          status,
+          timeslots (
+            title,
+            location,
+            user_id
+          )
+        `)
+        .eq('guest_id', userId)
+        .order('booking_date', { ascending: false });
+
+      // 호스트 정보 가져오기
+      if (sent) {
+        const sentWithHosts = await Promise.all(
+          sent.map(async (booking: any) => {
+            const { data: host } = await supabase
+              .from('users')
+              .select('name, avatar')
+              .eq('id', booking.timeslots.user_id)
+              .single();
+
+            return {
+              id: booking.id,
+              slotTitle: booking.timeslots.title,
+              date: booking.booking_date,
+              time: booking.booking_time,
+              price: booking.price,
+              status: booking.status,
+              location: booking.timeslots.location,
+              userName: host?.name || '알 수 없음',
+              userAvatar: host?.avatar || '👤'
+            };
+          })
+        );
+        setSentBookings(sentWithHosts);
+      }
+
+      // 내가 받은 예약 (host_id가 나)
+      const { data: received } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          booking_date,
+          booking_time,
+          price,
+          status,
+          guest_id,
+          timeslots (
+            title,
+            location
+          )
+        `)
+        .eq('host_id', userId)
+        .order('booking_date', { ascending: false });
+
+      // 게스트 정보 가져오기
+      if (received) {
+        const receivedWithGuests = await Promise.all(
+          received.map(async (booking: any) => {
+            const { data: guest } = await supabase
+              .from('users')
+              .select('name, avatar')
+              .eq('id', booking.guest_id)
+              .single();
+
+            return {
+              id: booking.id,
+              slotTitle: booking.timeslots.title,
+              date: booking.booking_date,
+              time: booking.booking_time,
+              price: booking.price,
+              status: booking.status,
+              location: booking.timeslots.location,
+              userName: guest?.name || '알 수 없음',
+              userAvatar: guest?.avatar || '👤'
+            };
+          })
+        );
+        setReceivedBookings(receivedWithGuests);
+      }
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+    }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
+    setSentBookings([]);
+    setReceivedBookings([]);
     alert('로그아웃되었습니다.');
   };
-  const handleApprove = async (bookingId: number) => {
-  if (!confirm('이 예약을 승인하시겠습니까?')) return;
-  
-  try {
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'confirmed' })
-      .eq('id', bookingId);
-    
-    if (error) throw error;
-    
-    alert('예약이 승인되었습니다!');
-    window.location.reload();
-  } catch (error: any) {
-    alert(`승인 실패: ${error.message}`);
-  }
-};
 
-const handleReject = async (bookingId: number) => {
-  if (!confirm('이 예약을 거절하시겠습니까?')) return;
-  
-  try {
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', bookingId);
+  const handleApprove = async (bookingId: string) => {
+    if (!confirm('이 예약을 승인하시겠습니까?')) return;
     
-    if (error) throw error;
-    
-    alert('예약이 거절되었습니다.');
-    window.location.reload();
-  } catch (error: any) {
-    alert(`거절 실패: ${error.message}`);
-  }
-};
-
-  const sentBookings: SentBooking[] = [
-    {
-      id: 1,
-      hostName: "김개발",
-      hostAvatar: "👤",
-      slotTitle: "1:1 커피챗 상담",
-      date: "2026-01-15",
-      time: "14:00",
-      price: 50000,
-      status: "confirmed",
-      location: "온라인"
-    },
-    {
-      id: 2,
-      hostName: "박요가",
-      hostAvatar: "🧘‍♀️",
-      slotTitle: "개인 요가 레슨",
-      date: "2026-01-10",
-      time: "10:00",
-      price: 30000,
-      status: "completed",
-      location: "오프라인 (강남)"
-    },
-    {
-      id: 3,
-      hostName: "최연애",
-      hostAvatar: "💝",
-      slotTitle: "연애 고민 상담",
-      date: "2026-01-20",
-      time: "19:00",
-      price: 40000,
-      status: "confirmed",
-      location: "온라인"
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', bookingId);
+      
+      if (error) throw error;
+      
+      alert('예약이 승인되었습니다!');
+      if (currentUser) {
+        await loadBookings(currentUser.id);
+      }
+    } catch (error: any) {
+      alert(`승인 실패: ${error.message}`);
     }
-  ];
+  };
 
-  const receivedBookings: ReceivedBooking[] = [
-    {
-      id: 1,
-      guestName: "이고객",
-      guestAvatar: "👨",
-      slotTitle: "1:1 커피챗 상담",
-      date: "2026-01-12",
-      time: "15:00",
-      price: 50000,
-      status: "confirmed",
-      location: "온라인"
-    },
-    {
-      id: 2,
-      guestName: "박손님",
-      guestAvatar: "👩",
-      slotTitle: "코드 리뷰 세션",
-      date: "2026-01-08",
-      time: "16:00",
-      price: 80000,
-      status: "completed",
-      location: "온라인"
-    },
-    {
-      id: 3,
-      guestName: "정예약",
-      guestAvatar: "🧑",
-      slotTitle: "기술 멘토링 (월간)",
-      date: "2026-01-18",
-      time: "18:00",
-      price: 280000,
-      status: "confirmed",
-      location: "온라인"
+  const handleReject = async (bookingId: string) => {
+    if (!confirm('이 예약을 거절하시겠습니까?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId);
+      
+      if (error) throw error;
+      
+      alert('예약이 거절되었습니다.');
+      if (currentUser) {
+        await loadBookings(currentUser.id);
+      }
+    } catch (error: any) {
+      alert(`거절 실패: ${error.message}`);
     }
-  ];
+  };
 
   const getStatusBadge = (status: string) => {
-  switch (status) {
-    case 'pending':
-      return <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">승인 대기</span>;
-    case 'confirmed':
-      return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">예약 확정</span>;
-    case 'completed':
-      return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">완료</span>;
-    case 'cancelled':
-      return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">취소됨</span>;
-    default:
-      return null;
-  }
-};
+    switch (status) {
+      case 'pending':
+        return <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">승인 대기</span>;
+      case 'confirmed':
+        return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">예약 확정</span>;
+      case 'completed':
+        return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">완료</span>;
+      case 'cancelled':
+        return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">취소됨</span>;
+      default:
+        return null;
+    }
+  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -174,6 +204,19 @@ const handleReject = async (bookingId: number) => {
       weekday: 'short'
     });
   };
+
+  const currentBookings = activeTab === 'sent' ? sentBookings : receivedBookings;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⏰</div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
@@ -246,159 +289,95 @@ const handleReject = async (bookingId: number) => {
         </div>
 
         <div className="space-y-4">
-          {activeTab === 'sent' ? (
-            sentBookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition p-6"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-2xl">
-                      {booking.hostAvatar}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800">{booking.hostName}</h3>
-                      <p className="text-sm text-gray-500">호스트</p>
-                    </div>
+          {currentBookings.map((booking) => (
+            <div
+              key={booking.id}
+              className="bg-white rounded-xl shadow-lg hover:shadow-xl transition p-6"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-2xl">
+                    {booking.userAvatar}
                   </div>
-                  {getStatusBadge(booking.status)}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800">{booking.userName}</h3>
+                    <p className="text-sm text-gray-500">{activeTab === 'sent' ? '호스트' : '게스트'}</p>
+                  </div>
+                </div>
+                {getStatusBadge(booking.status)}
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <h4 className="text-xl font-semibold text-gray-800 mb-3">{booking.slotTitle}</h4>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <span>📅</span>
+                    <span>{formatDate(booking.date)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <span>⏰</span>
+                    <span>{booking.time}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <span>📍</span>
+                    <span>{booking.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <span>💰</span>
+                    <span className="font-semibold">₩{booking.price.toLocaleString()}</span>
+                  </div>
                 </div>
 
-                <div className="border-t border-gray-100 pt-4">
-                  <h4 className="text-xl font-semibold text-gray-800 mb-3">{booking.slotTitle}</h4>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>📅</span>
-                      <span>{formatDate(booking.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>⏰</span>
-                      <span>{booking.time}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>📍</span>
-                      <span>{booking.location}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>💰</span>
-                      <span className="font-semibold">₩{booking.price.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-gray-100">
-  {booking.status === 'pending' && (
-    <>
-      <button 
-        onClick={() => handleApprove(booking.id)}
-        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold"
-      >
-        ✓ 승인
-      </button>
-      <button 
-        onClick={() => handleReject(booking.id)}
-        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold"
-      >
-        ✗ 거절
-      </button>
-    </>
-  )}
-  {booking.status === 'confirmed' && (
-    <>
-      <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-        일정 관리
-      </button>
-      <button className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-semibold">
-        취소
-      </button>
-    </>
-  )}
-  {booking.status === 'completed' && (
-    <>
-      <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-        리뷰 보기
-      </button>
-      <button className="px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-semibold">
-        다시 예약
-      </button>
-    </>
-  )}
-</div>
+                <div className="flex gap-3 pt-4 border-t border-gray-100">
+                  {activeTab === 'received' && booking.status === 'pending' && (
+                    <>
+                      <button 
+                        onClick={() => handleApprove(booking.id)}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold"
+                      >
+                        ✓ 승인
+                      </button>
+                      <button 
+                        onClick={() => handleReject(booking.id)}
+                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold"
+                      >
+                        ✗ 거절
+                      </button>
+                    </>
+                  )}
+                  {booking.status === 'confirmed' && (
+                    <>
+                      <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+                        {activeTab === 'sent' ? '일정 확인' : '일정 관리'}
+                      </button>
+                      <button className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-semibold">
+                        취소
+                      </button>
+                    </>
+                  )}
+                  {booking.status === 'completed' && (
+                    <>
+                      <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
+                        {activeTab === 'sent' ? '리뷰 작성' : '리뷰 보기'}
+                      </button>
+                      <button className="px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-semibold">
+                        다시 예약
+                      </button>
+                    </>
+                  )}
+                  {booking.status === 'cancelled' && (
+                    <button className="flex-1 px-4 py-2 bg-gray-200 text-gray-600 rounded-lg cursor-not-allowed">
+                      취소된 예약
+                    </button>
+                  )}
                 </div>
               </div>
-            ))
-          ) : (
-            receivedBookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition p-6"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-2xl">
-                      {booking.guestAvatar}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800">{booking.guestName}</h3>
-                      <p className="text-sm text-gray-500">게스트</p>
-                    </div>
-                  </div>
-                  {getStatusBadge(booking.status)}
-                </div>
-
-                <div className="border-t border-gray-100 pt-4">
-                  <h4 className="text-xl font-semibold text-gray-800 mb-3">{booking.slotTitle}</h4>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>📅</span>
-                      <span>{formatDate(booking.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>⏰</span>
-                      <span>{booking.time}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>📍</span>
-                      <span>{booking.location}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <span>💰</span>
-                      <span className="font-semibold">₩{booking.price.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-gray-100">
-                    {booking.status === 'confirmed' && (
-                      <>
-                        <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-                          일정 관리
-                        </button>
-                        <button className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-semibold">
-                          취소
-                        </button>
-                      </>
-                    )}
-                    {booking.status === 'completed' && (
-                      <>
-                        <button className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-                          리뷰 보기
-                        </button>
-                        <button className="px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition font-semibold">
-                          다시 예약
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
 
-        {((activeTab === 'sent' && sentBookings.length === 0) || 
-          (activeTab === 'received' && receivedBookings.length === 0)) && (
+        {currentBookings.length === 0 && (
           <div className="text-center py-16 bg-white rounded-xl shadow-lg">
             <p className="text-gray-500 text-lg mb-4">
               {activeTab === 'sent' ? '아직 예약한 내역이 없습니다.' : '아직 받은 예약이 없습니다.'}
