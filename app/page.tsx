@@ -147,17 +147,22 @@ export default function Home() {
                       <span className="font-semibold text-gray-800">{userProfile?.rating || 0}</span>
                       <span className="text-gray-500 text-sm">({userProfile?.reviews_count || 0}개 리뷰)</span>
                     </div>
-                    <div className="text-gray-500">
-                      👥 팔로워 {userProfile?.followers_count || 0}
-                    </div>
-                    <Link href="/following" className="text-purple-600 hover:text-purple-700 font-semibold">
-                      · 팔로잉 0
-                    </Link>
+                    <div className="flex items-center gap-6 mb-4">
+                    <Link href="/followers" className="text-gray-600 hover:text-purple-600 cursor-pointer transition">
+  👥 팔로워 {userProfile.followers_count?.toLocaleString() || 0}
+</Link>
+<Link href="/following" className="text-gray-600 hover:text-purple-600 cursor-pointer transition">
+  ➡️ 팔로잉 {userProfile.following_count?.toLocaleString() || 0}
+</Link>
+                  </div>
+                    
                   </div>
                 </div>
+                <Link href="/edit-profile">
                 <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
                   프로필 편집
                 </button>
+                </Link>
               </div>
             </div>
 

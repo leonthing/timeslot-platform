@@ -4,16 +4,16 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-export default function FollowingPage() {
+export default function FollowersPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [following, setFollowing] = useState<any[]>([]);
+  const [followers, setFollowers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadFollowing();
+    loadFollowers();
   }, []);
 
-  const loadFollowing = async () => {
+  const loadFollowers = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -22,27 +22,27 @@ export default function FollowingPage() {
       }
       setCurrentUser(user);
 
-      // 내가 팔로우하는 사람들 가져오기
+      // 나를 팔로우하는 사람들 가져오기
       const { data: followData } = await supabase
         .from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id);
+        .select('follower_id')
+        .eq('following_id', user.id);
 
       if (!followData || followData.length === 0) {
         setLoading(false);
         return;
       }
 
-      // 팔로잉들의 상세 정보 가져오기
-      const followingIds = followData.map(f => f.following_id);
+      // 팔로워들의 상세 정보 가져오기
+      const followerIds = followData.map(f => f.follower_id);
       const { data: usersData } = await supabase
         .from('users')
         .select('*')
-        .in('id', followingIds);
+        .in('id', followerIds);
 
-      setFollowing(usersData || []);
+      setFollowers(usersData || []);
     } catch (error) {
-      console.error('Error loading following:', error);
+      console.error('Error loading followers:', error);
     } finally {
       setLoading(false);
     }
@@ -108,38 +108,33 @@ export default function FollowingPage() {
         </Link>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">팔로잉</h1>
-          <p className="text-gray-600">내가 팔로우하는 {following.length}명</p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">팔로워</h1>
+          <p className="text-gray-600">나를 팔로우하는 {followers.length}명</p>
         </div>
 
-        {following.length === 0 ? (
+        {followers.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-            <p className="text-gray-500 text-lg">아직 팔로우한 사람이 없습니다.</p>
-            <p className="text-gray-400 mt-2">탐색 페이지에서 관심있는 사람을 팔로우해보세요!</p>
-            <Link href="/explore">
-              <button className="mt-6 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
-                탐색하기
-              </button>
-            </Link>
+            <p className="text-gray-500 text-lg">아직 팔로워가 없습니다.</p>
+            <p className="text-gray-400 mt-2">멋진 타임슬롯을 추가하고 사람들과 연결해보세요!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {following.map((user) => (
+            {followers.map((follower) => (
               <Link 
-                key={user.id} 
-                href={`/user/${user.id}`}
+                key={follower.id} 
+                href={`/user/${follower.id}`}
                 className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition"
               >
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-white text-3xl">
-                    {user.avatar || '👤'}
+                    {follower.avatar || '👤'}
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-800">{user.name}</h3>
-                    <p className="text-gray-600 text-sm">{user.title}</p>
+                    <h3 className="text-lg font-bold text-gray-800">{follower.name}</h3>
+                    <p className="text-gray-600 text-sm">{follower.title}</p>
                     <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                      <span>⭐ {user.rating || 0}</span>
-                      <span>👥 팔로워 {user.followers_count || 0}</span>
+                      <span>⭐ {follower.rating || 0}</span>
+                      <span>👥 팔로워 {follower.followers_count || 0}</span>
                     </div>
                   </div>
                 </div>
