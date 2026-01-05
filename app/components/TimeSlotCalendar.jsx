@@ -53,7 +53,7 @@ export default function TimeSlotCalendar({ slotTitle, price, slotId, hostId }) {
     .from('bookings')
     .insert([
       {
-        timeslot_id: slotId,
+        timetimeslot_id: slotId,
         host_id: hostId,
         guest_id: user.id,
         booking_date: selectedDate.toISOString().split('T')[0],
