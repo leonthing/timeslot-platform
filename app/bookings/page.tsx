@@ -230,6 +230,9 @@ export default function BookingsPage() {
               <Link href="/explore" className="text-gray-600 hover:text-gray-800 font-semibold">
                 탐색
               </Link>
+              <Link href="/feed" className="text-gray-600 hover:text-gray-800 font-semibold">
+  피드
+</Link>
               <Link href="/bookings" className="text-purple-600 font-semibold">
                 예약 내역
               </Link>
